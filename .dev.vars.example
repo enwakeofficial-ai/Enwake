@@ -1,0 +1,7 @@
+STORE_ADMIN_EMAILS=seedy@sites.test
+ORDER_MODE=preview
+ENABLE_COD=false
+# Add provider keys to .dev.vars only when ready to test payments.
+# RAZORPAY_KEY_ID=
+# RAZORPAY_KEY_SECRET=
+# RAZORPAY_WEBHOOK_SECRET=

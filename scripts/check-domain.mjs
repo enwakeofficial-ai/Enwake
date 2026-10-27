@@ -1,0 +1,13 @@
+import assert from 'node:assert/strict';
+import {normalizeQuantity,totals,defaultSettings} from '../app/lib/catalog.ts';
+assert.equal(normalizeQuantity('12',24),12);
+assert.equal(normalizeQuantity('999',24),24);
+assert.equal(normalizeQuantity('-3',24),1);
+assert.equal(normalizeQuantity('',24),1);
+assert.equal(normalizeQuantity('3.9',24),3);
+assert.equal(normalizeQuantity('invalid',24),1);
+assert.deepEqual(totals([{price:89900,quantity:2}],defaultSettings),{subtotal:179800,discount:0,shipping:0,total:179800,coupon:''});
+assert.deepEqual(totals([{price:89900,quantity:1}],defaultSettings,'welcome10'),{subtotal:89900,discount:8990,shipping:9900,total:90810,coupon:'WELCOME10'});
+assert.equal(totals([{price:89900,quantity:1}],defaultSettings,'fake').discount,0);
+assert.equal(totals([],defaultSettings).total,0);
+console.log('Quantity and pricing checks passed (10 assertions).');
