@@ -1,0 +1,4 @@
+import {createClient,type SupabaseClient} from '@supabase/supabase-js';
+let cached:Promise<{client:SupabaseClient|null;google:boolean}>|undefined;
+export function authClient(){if(!cached)cached=fetch('/api/config').then(async r=>{if(!r.ok)throw new Error('Could not load Supabase configuration.');const c=await r.json() as any;return {client:c.configured&&c.url&&c.publishableKey?createClient(c.url,c.publishableKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'pkce'}}):null,google:!!c.google};}).catch(e=>{cached=undefined;throw e;});return cached;}
+export async function sessionHeaders():Promise<Record<string,string>>{const{client}=await authClient();if(!client)return {};const{data,error}=await client.auth.getSession();if(error)throw error;return data.session?{Authorization:'Bearer '+data.session.access_token}:{};}

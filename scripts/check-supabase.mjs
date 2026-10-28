@@ -1,0 +1,32 @@
+import {PGlite} from '@electric-sql/pglite';
+import {readFileSync} from 'node:fs';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+await db.exec(`create role anon;create role authenticated;create role service_role bypassrls;create schema auth;create schema storage;create table auth.users(id uuid primary key,email text);create function auth.uid() returns uuid language sql stable as $$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$$;grant usage on schema public,auth,storage to anon,authenticated,service_role;create table storage.buckets(id text primary key,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);create table storage.objects(id uuid primary key default gen_random_uuid(),bucket_id text,name text);alter table storage.objects enable row level security;`);
+await db.exec(readFileSync('supabase/setup.sql','utf8'));
+const rows=async(sql,args=[]) => (await db.query(sql,args)).rows;
+const one=async(sql,args=[]) => (await rows(sql,args))[0];
+await db.exec(`insert into auth.users values('11111111-1111-1111-1111-111111111111','owner@example.com'),('22222222-2222-2222-2222-222222222222','customer@example.com');insert into public.admin_members(user_id) values('11111111-1111-1111-1111-111111111111');insert into products(id,name,category,scent,price,original_price,stock,image,visible,sample) values('test','Test candle','Candles','Woody',10000,10000,3,'/images/hero.webp',1,0);`);
+const customer={name:'Preview Customer',email:'preview@example.com',phone:'9999999999',address:'123 Example Street',city:'Hyderabad',state:'Telangana',pin:'500001'};
+let n=0;
+async function checkout(id,qty=1,extra={}){return (await one('select public.create_checkout_order($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7) as o',[id.padEnd(24,'x'),'private-tracking-token-1234567890123456',null,JSON.stringify(customer),JSON.stringify([{id:'test',quantity:qty,...extra}]),'','preview'])).o;}
+async function rejected(fn,pattern){try{await fn();assert.fail('Expected rejection');}catch(e){assert.match(e.message,pattern);}n++;}
+const o=await checkout('first',2,{price:1,total:1});assert.equal(o.subtotal,20000);assert.equal(o.total,29900);assert.equal(o.items[0].price,10000);assert.equal(o.access_token,undefined);n+=4;
+const retry=await checkout('first',2);assert.equal(retry.id,o.id);assert.equal((await one("select stock from products where id='test'")).stock,1);n+=2;
+await rejected(()=>checkout('oversell',2),/only 1 available/);assert.equal((await one("select stock from products where id='test'")).stock,1);n++;
+await rejected(()=>checkout('fraction',1.5),/whole quantity/);
+await db.query('select manage_store_order($1,$2,$3,$4)',[o.id,'Cancelled','Preview','']);await db.query('select manage_store_order($1,$2,$3,$4)',[o.id,'Cancelled','Preview','']);assert.equal((await one("select stock from products where id='test'")).stock,3);n++;
+await rejected(()=>checkout('first',2),/cancelled/);
+await rejected(()=>db.query('select manage_store_order($1,$2,$3,$4)',[o.id,'Confirmed','Preview','']),/cannot be reopened/);
+await db.exec('set role anon');assert.equal((await rows('select * from products')).length,1);n++;
+await rejected(()=>rows('select * from orders'),/permission denied/);await rejected(()=>rows('select * from subscribers'),/permission denied/);await rejected(()=>rows("insert into admin_members(user_id) values('22222222-2222-2222-2222-222222222222')"),/permission denied/);
+await rejected(()=>checkout('anonymous'),/permission denied/);await rejected(()=>rows("select record_captured_payment('x','x',1,'INR')"),/permission denied/);await db.exec('reset role');
+await db.exec("set role authenticated;select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222',false)");assert.equal((await rows('select * from admin_members')).length,0);n++;await rejected(()=>rows("insert into products(id,name,category,scent,price,original_price,stock,image) values('rogue','Rogue','Candles','Fresh',100,100,1,'x')"),/row-level security/);await db.exec('reset role');
+await db.exec("update settings set value=jsonb_set(jsonb_set(value,'{email}','\"store@example.com\"'),'{whatsapp}','\"919999999999\"') where key='store'");
+const paid=(await one('select create_checkout_order($1,$2,$3,$4::jsonb,$5::jsonb,$6,$7) as o',['payment'.padEnd(24,'x'),'private-tracking-token-1234567890123456',null,JSON.stringify(customer),JSON.stringify([{id:'test',quantity:1}]),'','razorpay'])).o;
+assert.equal((await one('select claim_gateway_order($1,$2) as ok',[paid.id,'private-tracking-token-1234567890123456'])).ok,true);assert.equal((await one('select claim_gateway_order($1,$2) as ok',[paid.id,'private-tracking-token-1234567890123456'])).ok,false);n+=2;
+await db.query("update orders set gateway_order='order_test' where id=$1",[paid.id]);await rejected(()=>db.query('select manage_store_order($1,$2,$3,$4)',[paid.id,'Confirmed','Pending','']),/verified payment/);
+await db.query("select record_captured_payment('order_test','pay_bad',1,'INR')");assert.equal((await one('select payment from orders where id=$1',[paid.id])).payment,'Pending');n++;
+await db.query("select record_captured_payment('order_test','pay_ok',$1,'INR')",[paid.total]);assert.equal((await one('select payment from orders where id=$1',[paid.id])).payment,'Received');n++;
+await db.query('select manage_store_order($1,$2,$3,$4)',[paid.id,'Cancelled','Received','']);await db.query("select record_captured_payment('order_test','pay_ok',$1,'INR')",[paid.total]);assert.equal((await one('select payment from orders where id=$1',[paid.id])).payment,'Refund required');assert.equal((await one("select stock from products where id='test'")).stock,3);n+=2;
+console.log('Supabase PostgreSQL migration and '+n+' checkout, RLS, stock, retry and payment assertions passed.');await db.close();

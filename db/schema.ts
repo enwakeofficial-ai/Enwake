@@ -1,9 +1,0 @@
-import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
-export const products = sqliteTable('products', {
- id:text('id').primaryKey(),name:text('name').notNull(),category:text('category').notNull(),scent:text('scent').notNull(),notes:text('notes').notNull(),description:text('description').notNull(),price:integer('price').notNull(),originalPrice:integer('original_price').notNull(),stock:integer('stock').notNull(),size:text('size').notNull(),burn:text('burn').notNull(),image:text('image').notNull(),imagePosition:integer('image_position').notNull().default(-1),visible:integer('visible').notNull().default(1),sample:integer('sample').notNull().default(1),badge:text('badge').notNull().default(''),createdAt:integer('created_at').notNull(),
-});
-export const orders=sqliteTable('orders',{
- id:text('id').primaryKey(),requestId:text('request_id').notNull().unique(),accessToken:text('access_token').notNull(),userId:text('user_id'),name:text('name').notNull(),email:text('email').notNull(),phone:text('phone').notNull(),address:text('address').notNull(),city:text('city').notNull(),state:text('state').notNull(),pin:text('pin').notNull(),note:text('note').notNull(),items:text('items').notNull(),subtotal:integer('subtotal').notNull(),discount:integer('discount').notNull(),shipping:integer('shipping').notNull(),total:integer('total').notNull(),coupon:text('coupon').notNull(),status:text('status').notNull(),payment:text('payment').notNull(),paymentMethod:text('payment_method').notNull(),gatewayOrder:text('gateway_order'),gatewayPayment:text('gateway_payment'),tracking:text('tracking').notNull().default(''),createdAt:integer('created_at').notNull(),
-});
-export const settings=sqliteTable('settings',{key:text('key').primaryKey(),value:text('value').notNull()});
-export const subscribers=sqliteTable('subscribers',{email:text('email').primaryKey(),createdAt:integer('created_at').notNull()});

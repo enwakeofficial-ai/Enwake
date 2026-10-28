@@ -1,0 +1,16 @@
+[build]
+  command = "pnpm run build:netlify"
+  publish = "dist/netlify"
+  functions = "netlify/functions"
+[build.environment]
+  NODE_VERSION = "24"
+[functions]
+  node_bundler = "esbuild"
+[[redirects]]
+  from = "/admin/*"
+  to = "/index.html"
+  status = 200
+[[redirects]]
+  from = "/admin"
+  to = "/index.html"
+  status = 200

@@ -1,3 +1,3 @@
-import {db,initialize,settings,product,identity,isAdmin,json,error,runtime} from '../../lib/server';
+import {route} from '../../lib/server';
 export const dynamic='force-dynamic';
-export async function GET(){try{await initialize();const list=await db().prepare('SELECT * FROM products WHERE visible=1 ORDER BY created_at').all();const u=await identity();const e=runtime();return json({products:list.results.map(product),settings:await settings(),user:u?{name:u.displayName,email:u.email}:null,admin:await isAdmin(),preview:e.ORDER_MODE!=='live',payments:!!(e.RAZORPAY_KEY_ID&&e.RAZORPAY_KEY_SECRET),cod:e.ENABLE_COD==='true'});}catch(e){return error(e);}}
+export const GET=(req:Request)=>route(req,'catalog');

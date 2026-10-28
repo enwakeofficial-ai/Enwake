@@ -1,2 +1,3 @@
-import {db,json,error,origin,body,clean,fail} from '../../lib/server';
-export async function POST(req:Request){try{origin(req);const b=await body(req),email=clean(b.email,254).toLowerCase();if(!/^\S+@\S+\.\S+$/.test(email))fail('Enter a valid email address.');if(!b.consent)fail('Please agree to receive occasional store emails.');await db().prepare('INSERT OR IGNORE INTO subscribers(email,created_at) VALUES(?,?)').bind(email,Date.now()).run();return json({ok:true});}catch(e){return error(e);}}
+import {route} from '../../lib/server';
+export const dynamic='force-dynamic';
+export const POST=(req:Request)=>route(req,'newsletter');

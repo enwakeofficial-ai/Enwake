@@ -1,4 +1,5 @@
 'use client';
+import AuthForm from '../auth-form';
 import {useEffect,useState} from 'react';
 import {ArrowLeft,ArrowRight,Download,Flame,LayoutDashboard,Package,Plus,Search,Settings as SettingsIcon,ShoppingBag,Upload,X} from 'lucide-react';
 import {api,Modal,ProductImage} from '../storefront';
@@ -12,7 +13,7 @@ export default function Manager(){
  async function saveProduct(e:React.FormEvent<HTMLFormElement>){e.preventDefault();if(!editing)return;const f=new FormData(e.currentTarget);const price=Math.round(Number(f.get('price'))*100),originalPrice=Math.round(Number(f.get('originalPrice'))*100);const ok=await action({action:'product',product:{...editing,...Object.fromEntries(f),price,originalPrice,stock:Number(f.get('stock')),imagePosition:editing.imagePosition,visible:f.has('visible')?1:0,sample:f.has('sample')?1:0}});if(ok)setEditing(null);}
  async function upload(file:File|undefined){if(!file)return;setBusy(true);try{const f=new FormData();f.set('file',file);const r=await api('/api/media',{method:'POST',body:f});setEditing(p=>p?{...p,image:r.url,imagePosition:-1}:null);}catch(e){setMessage((e as Error).message);}finally{setBusy(false);}}
  function csv(){if(!data)return;const safe=(x:any)=>'"'+String(x??'').replace(/^[=+@-]/,"'$&").replaceAll('"','""')+'"';const keys=['id','name','email','phone','address','city','state','pin','status','payment','subtotal','discount','shipping','total','tracking','created_at'];const text=[keys.join(','),...data.orders.map(o=>keys.map(k=>safe(o[k])).join(','))].join('\r\n');const url=URL.createObjectURL(new Blob(['\uFEFF'+text],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='enwake-orders.csv';a.click();URL.revokeObjectURL(url);}
- if(error)return <main className="admin-gate"><Flame size={35}/><p className="eyebrow">ENWAKE · STORE MANAGER</p><h1>Your store,<br/><em>thoughtfully managed.</em></h1><p>{error}</p><a href="/signin-with-chatgpt?return_to=%2Fadmin" target="_top" className="btn">Sign in as store owner <ArrowRight size={18}/></a><a href="/" className="text-link"><ArrowLeft size={16}/> Back to store</a></main>;
+ if(error)return <main className="admin-gate"><Flame size={35}/><p className="eyebrow">ENWAKE · STORE MANAGER</p><h1>Your store,<br/><em>thoughtfully managed.</em></h1><p>{error}</p><AuthForm onSuccess={load}/><a href="/" className="text-link"><ArrowLeft size={16}/> Back to store</a></main>;
  if(!data)return <div className="admin-gate"><Flame size={30}/><p>Opening your store manager…</p></div>;
  const filteredProducts=data.products.filter(p=>`${p.name} ${p.category}`.toLowerCase().includes(query.toLowerCase()));const orders=data.orders.filter(o=>(status==='All statuses'||o.status===status)&&`${o.id} ${o.name} ${o.email}`.toLowerCase().includes(query.toLowerCase()));
  const revenue=data.orders.filter(o=>o.payment==='Received'&&o.status!=='Cancelled').reduce((a,o)=>a+o.total,0);
